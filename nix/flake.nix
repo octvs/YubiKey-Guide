@@ -22,7 +22,7 @@
             }: let
               gpgAgentConf = pkgs.runCommand "gpg-agent.conf" {} ''
                 sed '/pinentry-program/d' ${self}/../config/gpg-agent.conf > $out
-                echo "pinentry-program ${pkgs.pinentry.curses}/bin/pinentry" >> $out
+                echo "pinentry-program ${pkgs.pinentry-curses}/bin/pinentry" >> $out
               '';
               hardwareTokenGuide = pkgs.writeShellScriptBin "view-guide" ''
                 viewer="$(type -P xdg-open || true)"
@@ -106,7 +106,7 @@
 
                 # Might be useful beyond the scope of the guide
                 cfssl
-                pcsctools
+                pcsc-tools
                 tmux
                 htop
 
