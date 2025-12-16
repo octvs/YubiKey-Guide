@@ -82,54 +82,6 @@ The following is a general ranking of environments least to most hospitable to g
 1. Hardened hardware and firmware (e.g., [Coreboot](https://www.coreboot.org/), [Intel ME removed](https://github.com/corna/me_cleaner))
 1. Air-gapped system without network capabilities, preferably ARM-based Raspberry Pi or other architecturally diverse equivalent
 
-Debian Live is used in this guide to balance usability and security, with some additional instructions for OpenBSD.
-
-Download the latest Debian Live image and signature files:
-
-```console
-export IMAGE_URL="https://cdimage.debian.org/debian-cd/current-live/amd64/iso-hybrid/"
-
-curl -fLO "$IMAGE_URL/SHA512SUMS" -O "$IMAGE_URL/SHA512SUMS.sign"
-
-curl -fLO "$IMAGE_URL/$(awk '/xfce.iso$/ {print $2}' SHA512SUMS)"
-```
-
-Download the Debian signing public key:
-
-```console
-gpg --keyserver hkps://keyring.debian.org \
-    --recv DF9B9C49EAA9298432589D76DA87E80D6294BE9B
-```
-
-If the public key cannot be received, use a different keyserver or DNS server:
-
-```console
-gpg --keyserver hkps://keyserver.ubuntu.com:443 \
-    --recv DF9B9C49EAA9298432589D76DA87E80D6294BE9B
-```
-
-The Debian Live signing public key is also available for import in [pubkeys](https://github.com/drduh/YubiKey-Guide/tree/master/pubkeys):
-
-```console
-gpg --import pubkeys/debian-DA87E80D6294BE9B.asc
-```
-
-Verify the signature:
-
-```console
-gpg --verify SHA512SUMS.sign SHA512SUMS
-```
-
-`gpg: Good signature from "Debian CD signing key <debian-cd@lists.debian.org>"` must appear in the output.
-
-Verify the cryptographic hash of the image file matches the one in the signed file:
-
-```console
-grep $(sha512sum debian-live-*-amd64-xfce.iso) SHA512SUMS
-```
-
-See [Verifying authenticity of Debian CDs](https://www.debian.org/CD/verify) for more information.
-
 Connect a portable storage device and identify the disk label - this guide uses `/dev/sdc` throughout, but this value may differ on your system:
 
 **Linux**
@@ -140,85 +92,8 @@ usb-storage 3-2:1.0: USB Mass Storage device detected
 sd 2:0:0:0: [sdc] Attached SCSI removable disk
 ```
 
-Copy the Debian image to the device:
-
-```console
-sudo dd if=debian-live-*-amd64-xfce.iso of=/dev/sdc bs=4M status=progress ; sync
-```
-
-**OpenBSD**
-
-```console
-$ dmesg | tail -n2
-sd2 at scsibus4 targ 1 lun 0: <TS-RDF5, SD Transcend, TS3A> SCSI4 0/direct removable serial.0000000000000
-sd2: 15193MB, 512 bytes/sector, 31116288 sectors
-
-$ doas dd if=debian-live-*-amd64-xfce.iso of=/dev/rsd2c bs=4m
-465+1 records in
-465+1 records out
-1951432704 bytes transferred in 139.125 secs (14026448 bytes/sec)
-```
-
-Power off, remove internal hard drives and all unnecessary devices, such as the wireless card.
-
-# Install software
-
-Load the operating system and configure networking. Optional hardening steps related to networking can be found [below](#network-considerations).
-
-> [!TIP]
-> If the screen locks on Debian Live, unlock with `user` / `live`
-
-Open terminal and install required software packages.
-
-**Debian/Ubuntu**
-
-```console
-sudo apt update
-
-sudo apt -y upgrade
-
-sudo apt -y install \
-    wget gnupg2 gnupg-agent dirmngr \
-    cryptsetup scdaemon pcscd \
-    yubikey-personalization yubikey-manager
-```
-
-**OpenBSD**
-
-```console
-doas pkg_add gnupg pcsc-tools
-```
-
-**macOS**
-
-Download and install [Homebrew](https://brew.sh/) and the following packages:
-
-```console
-brew install \
-    gnupg yubikey-personalization ykman pinentry-mac wget
-```
-
-> [!NOTE]
-> An additional Python package dependency may need to be installed to use [`ykman`](https://support.yubico.com/support/solutions/articles/15000012643-yubikey-manager-cli-ykman-user-guide) - `pip install yubikey-manager`
-
-Or using [MacPorts](https://www.macports.org/install.php), install the following packages:
-
-```console
-sudo port install gnupg2 yubikey-manager pinentry wget
-```
-
 **NixOS**
 
-Build an air-gapped NixOS LiveCD image:
-
-```console
-ref=$(git ls-remote https://github.com/drduh/Yubikey-Guide refs/heads/master | awk '{print $1}')
-
-nix build --experimental-features "nix-command flakes" \
-    github:drduh/YubiKey-Guide/$ref?dir=nix#nixosConfigurations.yubikeyLive.x86_64-linux.config.system.build.isoImage
-```
-
-If you have this repository checked out:
 
 Recommended, but optional: update `nixpkgs` and `drduh/config`:
 
@@ -238,7 +113,6 @@ Copy to USB drive:
 sudo cp -v result/iso/yubikeyLive.iso /dev/sdc ; sync
 ```
 
-Skip steps to create a temporary working directory and a hardened configuration, as they are already part of the image.
 
 Test builds using virtualization tools like QEMU. Keep in mind a virtualized environment does not provide the same amount of security as an ephemeral system (see *Prepare environment* above).
 
@@ -251,72 +125,6 @@ qemu-system-x86_64 \
     -m 4G \
     -smp 2 \
     -drive readonly=on,media=cdrom,format=raw,file=result/iso/yubikeyLive.iso
-```
-
-**Arch**
-
-```console
-sudo pacman -Syu --needed gnupg pcsclite ccid yubikey-personalization
-```
-
-**RHEL7**
-
-```console
-sudo yum install -y gnupg2 pinentry-curses pcsc-lite pcsc-lite-libs gnupg2-smime
-```
-
-**Fedora**
-
-```console
-sudo dnf install \
-    wget gnupg2 \
-    cryptsetup pcsc-lite \
-    yubikey-personalization-gui yubikey-manager
-```
-
-# Prepare GnuPG
-
-Create a temporary directory which will be cleared on [reboot](https://en.wikipedia.org/wiki/Tmpfs) and set it as the GnuPG directory:
-
-```console
-export GNUPGHOME=$(mktemp -d -t $(date +%Y.%m.%d)-XXXX)
-```
-
-## Configuration
-
-Create or import a [hardened configuration](https://github.com/drduh/YubiKey-Guide/blob/master/config/gpg.conf):
-
-```console
-cd $GNUPGHOME
-
-wget https://raw.githubusercontent.com/drduh/YubiKey-Guide/master/config/gpg.conf
-```
-
-The options will look similar to:
-
-```console
-$ grep -v "^#" $GNUPGHOME/gpg.conf
-personal-cipher-preferences AES256 AES192 AES
-personal-digest-preferences SHA512 SHA384 SHA256
-personal-compress-preferences ZLIB BZIP2 ZIP Uncompressed
-default-preference-list SHA512 SHA384 SHA256 AES256 AES192 AES ZLIB BZIP2 ZIP Uncompressed
-cert-digest-algo SHA512
-s2k-digest-algo SHA512
-s2k-cipher-algo AES256
-charset utf-8
-no-comments
-no-emit-version
-no-greeting
-keyid-format 0xlong
-list-options show-uid-validity
-verify-options show-uid-validity
-with-fingerprint
-require-cross-certification
-require-secmem
-no-symkey-cache
-armor
-use-agent
-throw-keyids
 ```
 
 > [!IMPORTANT]
@@ -652,88 +460,6 @@ sudo cryptsetup luksClose gnupg-secrets
 
 Repeat the process for any additional storage devices (at least two are recommended).
 
-**OpenBSD**
-
-Attach a USB disk and determine its label:
-
-```console
-$ dmesg | grep sd.\ at
-sd2 at scsibus5 targ 1 lun 0: <TS-RDF5, SD Transcend, TS37> SCSI4 0/direct removable serial.00000000000000000000
-```
-
-Print the existing partitions to make sure it's the right device:
-
-```console
-doas disklabel -h sd2
-```
-
-Initialize the disk by creating an `a` partition with FS type `RAID` and size of 25 Megabytes:
-
-```console
-$ doas fdisk -giy sd2
-Writing MBR at offset 0.
-Writing GPT.
-
-$ doas disklabel -E sd2
-Label editor (enter '?' for help at any prompt)
-sd2> a a
-offset: [64]
-size: [31101776] 25M
-FS type: [4.2BSD] RAID
-sd2*> w
-sd2> q
-No label changes
-```
-
-Encrypt with bioctl using a unique [Passphrase](#passphrase):
-
-```console
-$ doas bioctl -c C -l sd2a softraid0
-New passphrase:
-Re-type passphrase:
-softraid0: CRYPTO volume attached as sd3
-```
-
-Create an `i` partition on the new crypto volume and the filesystem:
-
-```console
-$ doas fdisk -giy sd3
-Writing MBR at offset 0.
-Writing GPT.
-
-$ doas disklabel -E sd3
-Label editor (enter '?' for help at any prompt)
-sd3> a i
-offset: [64]
-size: [16001]
-FS type: [4.2BSD]
-sd3*> w
-sd3> q
-No label changes.
-
-$ doas newfs sd3i
-```
-
-Mount the filesystem and copy the temporary directory with the keyring:
-
-```console
-doas mkdir -p /mnt/encrypted-storage
-
-doas mount /dev/sd3i /mnt/encrypted-storage
-
-doas cp -av $GNUPGHOME /mnt/encrypted-storage
-```
-
-Unmount and remove the encrypted volume:
-
-```console
-doas umount /mnt/encrypted-storage
-
-doas bioctl -d sd3
-```
-
-See [OpenBSD FAQ#14](https://www.openbsd.org/faq/faq14.html#softraidCrypto) for more information.
-
 # Export public key
 
 > [!IMPORTANT]
@@ -775,37 +501,6 @@ Unmount and remove the storage device:
 sudo umount /mnt/public
 ```
 
-**OpenBSD**
-
-```console
-$ doas disklabel -E sd2
-Label editor (enter '?' for help at any prompt)
-sd2> a b
-offset: [32130]
-size: [31069710] 25M
-FS type: [swap] 4.2BSD
-sd2*> w
-sd2> q
-No label changes.
-```
-
-Create a filesystem and export the public key to it:
-
-```console
-doas newfs sd2b
-
-doas mkdir -p /mnt/public
-
-doas mount /dev/sd2b /mnt/public
-
-gpg --armor --export $KEYID | doas tee /mnt/public/$KEYID-$(date +%F).asc
-```
-
-Unmount and remove the storage device:
-
-```console
-doas umount /mnt/public
-```
 
 # Configure YubiKey
 
