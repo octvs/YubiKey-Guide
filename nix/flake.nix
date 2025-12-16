@@ -1,9 +1,7 @@
 {
   description = "A Nix Flake for an xfce-based system with hardware token setup";
 
-  inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
-  };
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
 
   outputs = {
     self,
