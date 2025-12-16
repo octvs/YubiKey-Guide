@@ -1,5 +1,5 @@
 {
-  description = "A Nix Flake for an xfce-based system with YubiKey setup";
+  description = "A Nix Flake for an xfce-based system with hardware token setup";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
@@ -26,7 +26,7 @@
                 sed '/pinentry-program/d' ${self}/../config/gpg-agent.conf > $out
                 echo "pinentry-program ${pkgs.pinentry.curses}/bin/pinentry" >> $out
               '';
-              viewYubikeyGuide = pkgs.writeShellScriptBin "view-yubikey-guide" ''
+              hardwareTokenGuide = pkgs.writeShellScriptBin "view-guide" ''
                 viewer="$(type -P xdg-open || true)"
                 if [ -z "$viewer" ]; then
                   viewer="${pkgs.glow}/bin/glow -p"
@@ -35,14 +35,14 @@
               '';
             in {
               isoImage = {
-                isoName = "yubikeyLive.iso";
+                isoName = "token-setup-env.iso";
                 # As of writing, zstd-based iso is 1542M, takes ~2mins to
                 # compress. If you prefer a smaller image and are happy to
                 # wait, delete the line below, it will default to a
                 # slower-but-smaller xz (1375M in 8mins as of writing).
                 squashfsCompression = "zstd";
 
-                appendToMenuLabel = " YubiKey Live ${self.lastModifiedDate}";
+                appendToMenuLabel = " Hardware Token Setup Live ${self.lastModifiedDate}";
                 makeEfiBootable = true; # EFI booting
                 makeUsbBootable = true; # USB booting
               };
@@ -56,7 +56,6 @@
 
               services = {
                 pcscd.enable = true;
-                udev.packages = [pkgs.yubikey-personalization];
                 # Automatically log in at the virtual consoles.
                 getty.autologinUser = "nixos";
               };
@@ -99,13 +98,6 @@
                 parted
                 cryptsetup
 
-                # Yubico's official tools
-                yubikey-manager
-                yubikey-personalization
-                yubikey-personalization-gui
-                yubico-piv-tool
-                yubioath-flutter
-
                 # Testing
                 ent
 
@@ -120,9 +112,9 @@
                 tmux
                 htop
 
-                # This guide itself (run `view-yubikey-guide` on the terminal
+                # This guide itself (run `view-guide` on the terminal
                 # to open it in a non-graphical environment).
-                yubikeyGuide
+                hardwareTokenGuide
               ];
 
               # Disable networking so the system is air-gapped
