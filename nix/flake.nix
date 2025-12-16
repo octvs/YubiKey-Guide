@@ -33,19 +33,6 @@
                 fi
                 exec $viewer "${self}/../README.md"
               '';
-              shortcut = pkgs.makeDesktopItem {
-                name = "yubikey-guide";
-                icon = "${pkgs.yubioath-flutter}/share/icons/com.yubico.yubioath.png";
-                desktopName = "YubiKey Guide";
-                genericName = "Guide to using YubiKey for GnuPG and SSH";
-                comment = "Open YubiKey Guide in a reader program";
-                categories = ["Documentation"];
-                exec = "${viewYubikeyGuide}/bin/view-yubikey-guide";
-              };
-              yubikeyGuide = pkgs.symlinkJoin {
-                name = "yubikey-guide";
-                paths = [viewYubikeyGuide shortcut];
-              };
             in {
               isoImage = {
                 isoName = "yubikeyLive.iso";
@@ -72,23 +59,6 @@
                 udev.packages = [pkgs.yubikey-personalization];
                 # Automatically log in at the virtual consoles.
                 getty.autologinUser = "nixos";
-                # Comment out to run in a console for a smaller iso and less RAM.
-                xserver = {
-                  enable = true;
-                  desktopManager.xfce = {
-                    enable = true;
-                    enableScreensaver = false;
-                  };
-                  displayManager = {
-                    lightdm.enable = true;
-                  };
-                };
-                displayManager = {
-                  autoLogin = {
-                    enable = true;
-                    user = "nixos";
-                  };
-                };
               };
 
               programs = {
@@ -153,9 +123,6 @@
                 # This guide itself (run `view-yubikey-guide` on the terminal
                 # to open it in a non-graphical environment).
                 yubikeyGuide
-
-                # PDF and Markdown viewer
-                kdePackages.okular
               ];
 
               # Disable networking so the system is air-gapped
@@ -200,7 +167,6 @@
                 chown nixos ${homeDir} ${desktopDir} ${documentsDir}
 
                 cp -R ${self}/contrib/* ${homeDir}
-                ln -sf ${yubikeyGuide}/share/applications/yubikey-guide.desktop ${desktopDir}
                 ln -sfT ${self} ${documentsDir}/YubiKey-Guide
               '';
               system.stateVersion = "25.05";
