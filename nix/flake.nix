@@ -2,7 +2,7 @@
   description = "A Nix Flake for an xfce-based system with hardware token setup";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
   };
 
   outputs = {
@@ -13,13 +13,11 @@
       nixpkgs.lib.nixosSystem {
         inherit system;
         modules = [
-          "${nixpkgs}/nixos/modules/profiles/all-hardware.nix"
           "${nixpkgs}/nixos/modules/installer/cd-dvd/iso-image.nix"
           (
             {
               lib,
               pkgs,
-              config,
               ...
             }: let
               gpgAgentConf = pkgs.runCommand "gpg-agent.conf" {} ''
@@ -161,7 +159,7 @@
                 cp -R ${self}/contrib/* ${homeDir}
                 ln -sfT ${self} ${documentsDir}/YubiKey-Guide
               '';
-              system.stateVersion = "25.05";
+              system.stateVersion = "25.11";
             }
           )
         ];
