@@ -11,6 +11,7 @@
       nixpkgs.lib.nixosSystem {
         inherit system;
         modules = [
+          "${nixpkgs}/nixos/modules/profiles/all-hardware.nix"
           "${nixpkgs}/nixos/modules/installer/cd-dvd/iso-image.nix"
           (
             {
@@ -44,6 +45,12 @@
               };
 
               swapDevices = [];
+
+              # If you already know the hw you want to run on and it already
+              # has a hardware-configuration.nix you can just copy over the
+              # `boot.initrd.availableKernelModules` attribute and remove the
+              # `all-hardware.nix` module above to reduce iso size further.
+              # boot.initrd.availableKernelModules = ["ahci" "nvme" "sd_mod" "usb_storage" "xhci_pci"];
 
               boot = {
                 tmp.cleanOnBoot = true;
